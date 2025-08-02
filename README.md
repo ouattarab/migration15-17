@@ -1,56 +1,36 @@
-@ExtendWith(MockitoExtension.class)
-class Aggre8Test {
+@Test
+void testGetAggreg8UserId_Success() throws Exception {
+    UserRequest request = UserRequest.builder().email("test@example.com").build();
 
-    @InjectMocks
-    private Aggre8 aggre8;
+    String tokenJson = "{\"token\":\"abc123\"}";
+    String userJson = "{\"id\":\"user-123\"}";
 
-    @Mock
-    private ReferentialService refService;
+    Token token = new Token();
+    token.setToken("abc123");
 
-    @Mock
-    private ObjectMapper objectMapper;
+    UserResponse userResponse = new UserResponse();
+    userResponse.setId("user-123");
 
-    @Mock
-    private UserResponse mockResponse;
+    Aggreg8 aggreg8 = Mockito.spy(new Aggreg8());
 
-    @BeforeEach
-    void setUp() throws Exception {
-        // setup si besoin
-        ReflectionTestUtils.setField(aggre8, "testInProgress", false);
-        ReflectionTestUtils.setField(aggre8, "aggre8AppId", "dummyAppId");
-        ReflectionTestUtils.setField(aggre8, "aggre8Domain", "dummyDomain");
-        ReflectionTestUtils.setField(aggre8, "isEnabledAggre8V5", true);
-    }
+    // Spies sur getApiExt
+    Mockito.doReturn(tokenJson).when(aggreg8)
+           .getApiExt(any(), eq(Aggreg8Constants.AGGREG8_URL_GET_TOKEN), any(), any());
+    Mockito.doReturn(userJson).when(aggreg8)
+           .getApiExt(any(), eq(Aggreg8Constants.AGGREG8_URL_GET_USER), any(), any());
 
-    @Test
-    void shouldReturnUserId_whenApiReturnsValidResponse() throws Exception {
-        // Arrange
-        UserRequest request = new UserRequest();
-        String jsonString = "{}";
-        String apiResponse = "{\"id\":\"USER123\"}";
+    // Simule le parsing JSON
+    ObjectMapper objectMapper = Mockito.mock(ObjectMapper.class);
+    Mockito.doReturn("{\"email\":\"test@example.com\"}")
+           .when(objectMapper).writeValueAsString(any());
+    Mockito.doReturn(token).when(objectMapper).readValue(tokenJson, Token.class);
+    Mockito.doReturn(userResponse).when(objectMapper).readValue(userJson, UserResponse.class);
 
-        when(objectMapper.writeValueAsString(any())).thenReturn(jsonString);
-        when(aggre8.getApiExt(anyString(), anyString(), any(), any(), anyString(), any()))
-            .thenReturn(apiResponse);
-        when(objectMapper.readValue(eq(apiResponse), eq(UserResponse.class))).thenReturn(mockResponse);
-        when(mockResponse.get_id()).thenReturn("USER123");
-        when(StringUtils.isNotBlank("USER123")).thenReturn(true); // facultatif si tu veux mocker static
+    // Injection manuelle
+    Field field = Aggreg8.class.getDeclaredField("objectMapper");
+    field.setAccessible(true);
+    field.set(aggreg8, objectMapper);
 
-        // Act
-        String result = aggre8.getAggre8UserId(request);
-
-        // Assert
-        assertEquals("USER123", result);
-    }
-
-    @Test
-    void shouldThrowException_whenJsonProcessingFails() throws Exception {
-        // Arrange
-        UserRequest request = new UserRequest();
-        when(objectMapper.writeValueAsString(any()))
-            .thenThrow(new JsonProcessingException("error") {});
-
-        // Act + Assert
-        assertThrows(TechnicalException.class, () -> aggre8.getAggre8UserId(request));
-    }
+    String result = aggreg8.getAggreg8UserId(request);
+    assertEquals("user-123", result);
 }
