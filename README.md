@@ -1,66 +1,56 @@
-@SpringBootTest
-class Aggreg8IntegrationTest {
+@ExtendWith(MockitoExtension.class)
+class Aggreg8Test {
 
-    @Autowired
+    @InjectMocks
     private Aggreg8 aggreg8;
 
-    @MockBean
-    private ReferentialService refService;
+    @Mock
+    private SomeDependency dependency; // à adapter si getBanks() dépend d'un service
 
-    @MockBean
-    private RestTemplate restTemplate;
-
-    @MockBean
-    private ObjectMapper objectMapper;
+    // Simulation de la méthode getBanks() via un spy
+    @Spy
+    @InjectMocks
+    private Aggreg8 spyAggreg8;
 
     @Test
-    void getExternalWebCourseTokenAndId_success() throws Exception {
-        // 1. Préparation des données d'entrée et sortie
-        UserFlowInitAddBankRequest request = new UserFlowInitAddBankRequest();
-        String requestJson = "{\"some\":\"value\"}";
-        String responseJson = "{\"token\":\"abc123\", \"userFlowId\":\"id123\"}";
+    void getBank_shouldReturnMatchingBank_whenBankExists() throws Exception {
+        // given
+        String bankId = "123";
+        BankAggreg8ResponseDto bank1 = new BankAggreg8ResponseDto();
+        bank1.set_id("123");
 
-        UserFlowInitAddBankResponse expectedResponse = new UserFlowInitAddBankResponse();
-        expectedResponse.setToken("abc123");
-        expectedResponse.setUserFlowId("id123");
+        BankAggreg8ResponseDto bank2 = new BankAggreg8ResponseDto();
+        bank2.set_id("456");
 
-        // 2. Mocks pour les valeurs de configuration (initConfigAggreg8)
-        Object mockSecret = Mockito.mock(Object.class);
-        Mockito.when(mockSecret.getRefLibTwo()).thenReturn("dummy-secret");
-        Mockito.when(refService.getReferentialValue(any(), eq(Aggregg8Constants.AGGREG8_SECRET_REF), anyInt()))
-               .thenReturn(mockSecret);
+        BankAggreg8ResponseDto[] banks = new BankAggreg8ResponseDto[]{bank1, bank2};
 
-        Object mockDomain = Mockito.mock(Object.class);
-        Mockito.when(mockDomain.getRefLibTwo()).thenReturn("https://fake-url.com");
-        Mockito.when(refService.getReferentialValue(any(), eq(Aggregg8Constants.AGGREG8_DOMAIN_REF), anyInt()))
-               .thenReturn(mockDomain);
+        Mockito.doReturn(banks).when(spyAggreg8).getBanks();
 
-        Object mockActivated = Mockito.mock(Object.class);
-        Mockito.when(mockActivated.getRefLibTwo()).thenReturn("1");
-        Mockito.when(refService.getReferentialValue(any(), eq(Aggregg8Constants.AGGREG8_VS_ACTIVATED), anyInt()))
-               .thenReturn(mockActivated);
+        // when
+        BankAggreg8ResponseDto result = spyAggreg8.getBank(bankId);
 
-        // 3. Mock de la sérialisation de l'objet request
-        Mockito.when(objectMapper.writeValueAsString(request)).thenReturn(requestJson);
-
-        // 4. Mock de l'appel HTTP simulé via restTemplate
-        Mockito.when(restTemplate.exchange(
-                anyString(),
-                eq(HttpMethod.POST),
-                any(HttpEntity.class),
-                eq(String.class)
-        )).thenReturn(new ResponseEntity<>(responseJson, HttpStatus.OK));
-
-        // 5. Mock de la désérialisation de la réponse JSON
-        Mockito.when(objectMapper.readValue(responseJson, UserFlowInitAddBankResponse.class))
-               .thenReturn(expectedResponse);
-
-        // 6. Appel de la méthode testée
-        UserFlowInitAddBankResponse result = aggreg8.getExternalWebCourseTokenAndId(request);
-
-        // 7. Vérifications
+        // then
         assertNotNull(result);
-        assertEquals("abc123", result.getToken());
-        assertEquals("id123", result.getUserFlowId());
+        assertEquals("123", result.get_id());
+    }
+
+    @Test
+    void getBank_shouldThrowFunctionalException_whenBankNotFound() throws Exception {
+        // given
+        String bankId = "999";
+        BankAggreg8ResponseDto bank1 = new BankAggreg8ResponseDto();
+        bank1.set_id("123");
+
+        BankAggreg8ResponseDto[] banks = new BankAggreg8ResponseDto[]{bank1};
+
+        Mockito.doReturn(banks).when(spyAggreg8).getBanks();
+
+        // when + then
+        FunctionalException exception = assertThrows(
+            FunctionalException.class,
+            () -> spyAggreg8.getBank(bankId)
+        );
+
+        assertEquals(Aggregg8ErrorConstants.ERROR_AGGREG8_BANK_NOT_FOUND, exception.getMessage());
     }
 }
