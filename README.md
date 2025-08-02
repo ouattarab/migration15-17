@@ -1,56 +1,56 @@
 @ExtendWith(MockitoExtension.class)
-class Aggreg8Test {
+class Aggre8Test {
 
     @InjectMocks
-    private Aggreg8 aggreg8;
+    private Aggre8 aggre8;
 
     @Mock
-    private SomeDependency dependency; // à adapter si getBanks() dépend d'un service
+    private ReferentialService refService;
 
-    // Simulation de la méthode getBanks() via un spy
-    @Spy
-    @InjectMocks
-    private Aggreg8 spyAggreg8;
+    @Mock
+    private ObjectMapper objectMapper;
 
-    @Test
-    void getBank_shouldReturnMatchingBank_whenBankExists() throws Exception {
-        // given
-        String bankId = "123";
-        BankAggreg8ResponseDto bank1 = new BankAggreg8ResponseDto();
-        bank1.set_id("123");
+    @Mock
+    private UserResponse mockResponse;
 
-        BankAggreg8ResponseDto bank2 = new BankAggreg8ResponseDto();
-        bank2.set_id("456");
-
-        BankAggreg8ResponseDto[] banks = new BankAggreg8ResponseDto[]{bank1, bank2};
-
-        Mockito.doReturn(banks).when(spyAggreg8).getBanks();
-
-        // when
-        BankAggreg8ResponseDto result = spyAggreg8.getBank(bankId);
-
-        // then
-        assertNotNull(result);
-        assertEquals("123", result.get_id());
+    @BeforeEach
+    void setUp() throws Exception {
+        // setup si besoin
+        ReflectionTestUtils.setField(aggre8, "testInProgress", false);
+        ReflectionTestUtils.setField(aggre8, "aggre8AppId", "dummyAppId");
+        ReflectionTestUtils.setField(aggre8, "aggre8Domain", "dummyDomain");
+        ReflectionTestUtils.setField(aggre8, "isEnabledAggre8V5", true);
     }
 
     @Test
-    void getBank_shouldThrowFunctionalException_whenBankNotFound() throws Exception {
-        // given
-        String bankId = "999";
-        BankAggreg8ResponseDto bank1 = new BankAggreg8ResponseDto();
-        bank1.set_id("123");
+    void shouldReturnUserId_whenApiReturnsValidResponse() throws Exception {
+        // Arrange
+        UserRequest request = new UserRequest();
+        String jsonString = "{}";
+        String apiResponse = "{\"id\":\"USER123\"}";
 
-        BankAggreg8ResponseDto[] banks = new BankAggreg8ResponseDto[]{bank1};
+        when(objectMapper.writeValueAsString(any())).thenReturn(jsonString);
+        when(aggre8.getApiExt(anyString(), anyString(), any(), any(), anyString(), any()))
+            .thenReturn(apiResponse);
+        when(objectMapper.readValue(eq(apiResponse), eq(UserResponse.class))).thenReturn(mockResponse);
+        when(mockResponse.get_id()).thenReturn("USER123");
+        when(StringUtils.isNotBlank("USER123")).thenReturn(true); // facultatif si tu veux mocker static
 
-        Mockito.doReturn(banks).when(spyAggreg8).getBanks();
+        // Act
+        String result = aggre8.getAggre8UserId(request);
 
-        // when + then
-        FunctionalException exception = assertThrows(
-            FunctionalException.class,
-            () -> spyAggreg8.getBank(bankId)
-        );
+        // Assert
+        assertEquals("USER123", result);
+    }
 
-        assertEquals(Aggregg8ErrorConstants.ERROR_AGGREG8_BANK_NOT_FOUND, exception.getMessage());
+    @Test
+    void shouldThrowException_whenJsonProcessingFails() throws Exception {
+        // Arrange
+        UserRequest request = new UserRequest();
+        when(objectMapper.writeValueAsString(any()))
+            .thenThrow(new JsonProcessingException("error") {});
+
+        // Act + Assert
+        assertThrows(TechnicalException.class, () -> aggre8.getAggre8UserId(request));
     }
 }
