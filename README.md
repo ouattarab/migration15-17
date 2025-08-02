@@ -14,8 +14,8 @@ class Aggreg8IntegrationTest {
     private ObjectMapper objectMapper;
 
     @Test
-    void testGetExternalWebCourseTokenAndId_success() throws Exception {
-        // 1. Préparation des données
+    void getExternalWebCourseTokenAndId_success() throws Exception {
+        // 1. Préparation des données d'entrée et sortie
         UserFlowInitAddBankRequest request = new UserFlowInitAddBankRequest();
         String requestJson = "{\"some\":\"value\"}";
         String responseJson = "{\"token\":\"abc123\", \"userFlowId\":\"id123\"}";
@@ -24,32 +24,36 @@ class Aggreg8IntegrationTest {
         expectedResponse.setToken("abc123");
         expectedResponse.setUserFlowId("id123");
 
-        // 2. Mocks pour initConfigAggreg8()
-        when(refService.getReferentialValue(any(), eq(Aggregg8Constants.AGGREG8_SECRET_REF), anyInt()))
-            .thenReturn(new ReferentialValue("dummy-secret"));
+        // 2. Mocks pour les valeurs de configuration (initConfigAggreg8)
+        Object mockSecret = Mockito.mock(Object.class);
+        Mockito.when(mockSecret.getRefLibTwo()).thenReturn("dummy-secret");
+        Mockito.when(refService.getReferentialValue(any(), eq(Aggregg8Constants.AGGREG8_SECRET_REF), anyInt()))
+               .thenReturn(mockSecret);
 
-        when(refService.getReferentialValue(any(), eq(Aggregg8Constants.AGGREG8_DOMAIN_REF), anyInt()))
-            .thenReturn(new ReferentialValue("https://fake-url.com"));
+        Object mockDomain = Mockito.mock(Object.class);
+        Mockito.when(mockDomain.getRefLibTwo()).thenReturn("https://fake-url.com");
+        Mockito.when(refService.getReferentialValue(any(), eq(Aggregg8Constants.AGGREG8_DOMAIN_REF), anyInt()))
+               .thenReturn(mockDomain);
 
-        when(refService.getReferentialValue(any(), eq(Aggregg8Constants.AGGREG8_VS_ACTIVATED), anyInt()))
-            .thenReturn(new ReferentialValue("1"));
+        Object mockActivated = Mockito.mock(Object.class);
+        Mockito.when(mockActivated.getRefLibTwo()).thenReturn("1");
+        Mockito.when(refService.getReferentialValue(any(), eq(Aggregg8Constants.AGGREG8_VS_ACTIVATED), anyInt()))
+               .thenReturn(mockActivated);
 
-        // ... autres appels à getReferentialValue si nécessaire ...
+        // 3. Mock de la sérialisation de l'objet request
+        Mockito.when(objectMapper.writeValueAsString(request)).thenReturn(requestJson);
 
-        // 3. Mock de la sérialisation ObjectMapper
-        when(objectMapper.writeValueAsString(request)).thenReturn(requestJson);
-
-        // 4. Mock de l'appel API externe
-        when(restTemplate.exchange(
+        // 4. Mock de l'appel HTTP simulé via restTemplate
+        Mockito.when(restTemplate.exchange(
                 anyString(),
                 eq(HttpMethod.POST),
                 any(HttpEntity.class),
                 eq(String.class)
         )).thenReturn(new ResponseEntity<>(responseJson, HttpStatus.OK));
 
-        // 5. Mock de la désérialisation de la réponse
-        when(objectMapper.readValue(responseJson, UserFlowInitAddBankResponse.class))
-            .thenReturn(expectedResponse);
+        // 5. Mock de la désérialisation de la réponse JSON
+        Mockito.when(objectMapper.readValue(responseJson, UserFlowInitAddBankResponse.class))
+               .thenReturn(expectedResponse);
 
         // 6. Appel de la méthode testée
         UserFlowInitAddBankResponse result = aggreg8.getExternalWebCourseTokenAndId(request);
