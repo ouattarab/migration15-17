@@ -1,60 +1,44 @@
-@SpringBootTest
-class Aggreg8PrepareRedirectionUrlTest {
+@ExtendWith(MockitoExtension.class)
+class Aggreg8Test {
 
-    @Autowired
+    @InjectMocks
     private Aggreg8 aggreg8;
 
-    @MockBean
+    @Mock
+    private IReferentialService refService;
+
+    @Mock
     private IApiOrchestratorService apiOrchestratorService;
 
-    // Spy uniquement si tu veux mocker les méthodes internes
-    private Aggreg8 spyAggreg8;
+    @Mock
+    private IAispSettingsService aispSettingsService;
 
     @BeforeEach
-    void setup() {
-        spyAggreg8 = Mockito.spy(aggreg8);
+    void setUp() {
+        // important pour ne pas lancer initConfigAggreg8
+        aggreg8.setTestInProgress(true);
     }
 
     @Test
-    void testPrepareRedirectionUrl_Success() throws Exception {
-        // Given
-        PrepareRedirectionUrlDto dto = mock(PrepareRedirectionUrlDto.class);
-        when(dto.getBankCode()).thenReturn("BANK123");
-        when(dto.getEmail()).thenReturn("test@example.com");
-        when(dto.getIssuerUrl()).thenReturn("http://issuer.com");
-        when(dto.getWebCourseId()).thenReturn("WEB123");
+    void testGetBanks_success() throws Exception {
+        // Given : un token JSON en retour d'API
+        String tokenJson = "{\"token\": \"mocked-token-value\"}";
+        String banksJson = "{\"_id\": \"BANK123\"}";
 
-        // Simuler getBank
-        BankAggreg8ResponseDto bankDto = new BankAggreg8ResponseDto();
-        bankDto.set_id("BANK123");
-        doReturn(bankDto).when(spyAggreg8).getBank("BANK123");
+        // Simuler getApiExt : 1er appel retourne le token, 2e appel retourne la réponse avec banque
+        Mockito.when(aggreg8.getApiExt(
+                anyString(), eq(Aggreg8Constants.AGGREG8_TOKEN), isNull(), isNull(), any()))
+            .thenReturn(tokenJson);
 
-        // Simuler getAggreg8UserId
-        doReturn("externalUser123").when(spyAggreg8)
-            .getAggreg8UserId(argThat(req -> "test@example.com".equals(req.getEmail())));
-
-        // Simuler réponse A8
-        UserFlowInitAddBankResponse mockedResponse = mock(UserFlowInitAddBankResponse.class);
-        when(mockedResponse.getToken()).thenReturn("mock-token");
-        when(mockedResponse.getUserFlowId()).thenReturn("flow-123");
-
-        doReturn(mockedResponse).when(spyAggreg8).getExternalWebCourseTokenAndId(any());
-
-        // Simuler URL générée
-        doReturn("http://redirect.local/mock-token").when(spyAggreg8).generateRedirectionUrl("mock-token");
+        Mockito.when(aggreg8.getApiExt(
+                anyString(), eq(Aggreg8Constants.AGGREG8_URL_GET_BANKS), isNull(), isNull(), any()))
+            .thenReturn(banksJson);
 
         // When
-        String result = spyAggreg8.prepareRedirectionUrl(dto);
+        BankAggreg8ResponseDto result = aggreg8.getBanks();
 
         // Then
-        assertEquals("http://redirect.local/mock-token", result);
-
-        verify(apiOrchestratorService).saveExternalCustomerIdWithEmail(
-            eq(Aggreg8Constants.AGGREG8_PROVIDER_ID),
-            eq("externalUser123"),
-            eq("test@example.com"),
-            eq("WEB123"),
-            eq("flow-123")
-        );
+        assertNotNull(result);
+        assertEquals("BANK123", result.get_id());
     }
 }
