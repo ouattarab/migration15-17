@@ -1,36 +1,57 @@
-@Test
-void testGetAggreg8UserId_Success() throws Exception {
-    UserRequest request = UserRequest.builder().email("test@example.com").build();
+@SpringBootTest
+public class Aggreg8Test {
 
-    String tokenJson = "{\"token\":\"abc123\"}";
-    String userJson = "{\"id\":\"user-123\"}";
+    @Autowired
+    private Aggreg8 aggreg8;
 
-    Token token = new Token();
-    token.setToken("abc123");
+    @MockBean
+    private IReferentialService referentialService;
 
-    UserResponse userResponse = new UserResponse();
-    userResponse.setId("user-123");
+    @MockBean
+    private ExternalBankAccountDetailsRepository externalBankAccountDetailsRepository;
 
-    Aggreg8 aggreg8 = Mockito.spy(new Aggreg8());
+    @MockBean
+    private ExternalBankAccountActionRepository externalBankAccountActionRepository;
 
-    // Spies sur getApiExt
-    Mockito.doReturn(tokenJson).when(aggreg8)
-           .getApiExt(any(), eq(Aggreg8Constants.AGGREG8_URL_GET_TOKEN), any(), any());
-    Mockito.doReturn(userJson).when(aggreg8)
-           .getApiExt(any(), eq(Aggreg8Constants.AGGREG8_URL_GET_USER), any(), any());
+    // etc. selon tes dépendances...
 
-    // Simule le parsing JSON
-    ObjectMapper objectMapper = Mockito.mock(ObjectMapper.class);
-    Mockito.doReturn("{\"email\":\"test@example.com\"}")
-           .when(objectMapper).writeValueAsString(any());
-    Mockito.doReturn(token).when(objectMapper).readValue(tokenJson, Token.class);
-    Mockito.doReturn(userResponse).when(objectMapper).readValue(userJson, UserResponse.class);
+    // ✅ Cas 1 : banque trouvée
+    @Test
+    public void testGetBank_Success() throws Exception {
+        // Given
+        String bankId = "bank123";
 
-    // Injection manuelle
-    Field field = Aggreg8.class.getDeclaredField("objectMapper");
-    field.setAccessible(true);
-    field.set(aggreg8, objectMapper);
+        BankAggreg8ResponseDto dto = new BankAggreg8ResponseDto();
+        dto.set_id("bank123");
 
-    String result = aggreg8.getAggreg8UserId(request);
-    assertEquals("user-123", result);
+        Aggreg8 aggreg8Spy = Mockito.spy(aggreg8); // nécessaire juste pour override getBanks()
+        Mockito.doReturn(new BankAggreg8ResponseDto[]{dto}).when(aggreg8Spy).getBanks();
+
+        // When
+        BankAggreg8ResponseDto result = aggreg8Spy.getBank(bankId);
+
+        // Then
+        assertNotNull(result);
+        assertEquals("bank123", result.get_id());
+    }
+
+    // ❌ Cas 2 : banque non trouvée → exception
+    @Test
+    public void testGetBank_NotFound() throws Exception {
+        // Given
+        String bankId = "not-found";
+
+        BankAggreg8ResponseDto dto = new BankAggreg8ResponseDto();
+        dto.set_id("another-id");
+
+        Aggreg8 aggreg8Spy = Mockito.spy(aggreg8);
+        Mockito.doReturn(new BankAggreg8ResponseDto[]{dto}).when(aggreg8Spy).getBanks();
+
+        // When / Then
+        FunctionalException ex = assertThrows(
+            FunctionalException.class,
+            () -> aggreg8Spy.getBank(bankId)
+        );
+        assertEquals(Aggreg8ErrorConstants.ERROR_AGGREG8_BANK_NOT_FOUND, ex.getCode());
+    }
 }
