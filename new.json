@@ -1,54 +1,54 @@
 @Test
 public void testGetBanks_success() throws Exception {
-    // Given : mock token et réponse banques
+    // Given
     String tokenJson = "{\"token\":\"mocked-token-value\"}";
     String banksJson = "[{\"_id\":\"BANK123\"}]";
 
-    // Mock retour de getApiExt pour le token
+    // Mock getApiExt pour token
     Mockito.when(aggreg8.getApiExt(
-            Mockito.anyString(),
-            eq(Aggreg8Constants.AGGREG8_TOKEN),
-            Mockito.isNull(),
-            Mockito.isNull(),
-            Mockito.any()
+        Mockito.anyString(),
+        eq(Aggreg8Constants.AGGREG8_TOKEN),
+        Mockito.isNull(),
+        Mockito.isNull(),
+        Mockito.isNull()
     )).thenReturn(tokenJson);
 
-    // Mock retour de getApiExt pour les banques
+    // Mock getApiExt pour banques
     Mockito.when(aggreg8.getApiExt(
-            Mockito.anyString(),
-            eq(Aggreg8Constants.AGGREG8_URL_GET_BANKS),
-            Mockito.isNull(),
-            Mockito.isNull(),
-            Mockito.any()
+        Mockito.anyString(),
+        eq(Aggreg8Constants.AGGREG8_URL_GET_BANKS),
+        Mockito.isNull(),
+        Mockito.isNull(),
+        Mockito.any()
     )).thenReturn(banksJson);
 
-    // Mock objets ReferentielEntreprise pour les .getRefLibTwo()
-    ReferentielEntreprise mockPrivateKey = Mockito.mock(ReferentielEntreprise.class);
-    Mockito.when(mockPrivateKey.getRefLibTwo()).thenReturn("private-key");
+    // Mock des référentiels nécessaires
+    ReferentialEntreprise mockEnt11 = Mockito.mock(ReferentialEntreprise.class);
+    ReferentialEntreprise mockEnt13 = Mockito.mock(ReferentialEntreprise.class);
+    ReferentialEntreprise mockEnt14 = Mockito.mock(ReferentialEntreprise.class);
 
-    ReferentielEntreprise mockAppId = Mockito.mock(ReferentielEntreprise.class);
-    Mockito.when(mockAppId.getRefLibTwo()).thenReturn("app-id");
+    Mockito.when(mockEnt11.getRefLibTwo()).thenReturn("1");
+    Mockito.when(mockEnt13.getRefLibTwo()).thenReturn("3");
+    Mockito.when(mockEnt14.getRefLibTwo()).thenReturn("10");
 
-    ReferentielEntreprise mockSecret = Mockito.mock(ReferentielEntreprise.class);
-    Mockito.when(mockSecret.getRefLibTwo()).thenReturn("secret");
+    // Mock des appels avec bons codes
+    Mockito.when(refService.getReferentialValue(
+        eq(ReferentialEntreprise.class),
+        eq(Aggreg8Constants.AGGREG8_GRP_REF),
+        eq(1), eq(11), eq(1)
+    )).thenReturn(mockEnt11);
 
-    ReferentielEntreprise mockDomain = Mockito.mock(ReferentielEntreprise.class);
-    Mockito.when(mockDomain.getRefLibTwo()).thenReturn("domain");
+    Mockito.when(refService.getReferentialValue(
+        eq(ReferentialEntreprise.class),
+        eq(Aggreg8Constants.AGGREG8_GRP_REF),
+        eq(1), eq(13), eq(1)
+    )).thenReturn(mockEnt13);
 
-    ReferentielEntreprise mockActivated = Mockito.mock(ReferentielEntreprise.class);
-    Mockito.when(mockActivated.getRefLibTwo()).thenReturn("1");
-
-    // Mock des appels à referentialService.getReferentialValue(...)
-    Mockito.when(referentialService.getReferentialValue(eq(ReferentielEntreprise.class), eq(Aggreg8Constants.AGGREG8_PRIVATE_KEY_REF), Mockito.anyInt(), Mockito.anyInt()))
-            .thenReturn(mockPrivateKey);
-    Mockito.when(referentialService.getReferentialValue(eq(ReferentielEntreprise.class), eq(Aggreg8Constants.AGGREG8_APP_ID_REF), Mockito.anyInt(), Mockito.anyInt()))
-            .thenReturn(mockAppId);
-    Mockito.when(referentialService.getReferentialValue(eq(ReferentielEntreprise.class), eq(Aggreg8Constants.AGGREG8_SECRET_REF), Mockito.anyInt(), Mockito.anyInt()))
-            .thenReturn(mockSecret);
-    Mockito.when(referentialService.getReferentialValue(eq(ReferentielEntreprise.class), eq(Aggreg8Constants.AGGREG8_DOMAIN_REF), Mockito.anyInt(), Mockito.anyInt()))
-            .thenReturn(mockDomain);
-    Mockito.when(referentialService.getReferentialValue(eq(ReferentielEntreprise.class), eq(Aggreg8Constants.AGGREG8_VS_ACTIVATED), Mockito.anyInt(), Mockito.anyInt()))
-            .thenReturn(mockActivated);
+    Mockito.when(refService.getReferentialValue(
+        eq(ReferentialEntreprise.class),
+        eq(Aggreg8Constants.AGGREG8_GRP_REF),
+        eq(1), eq(14), eq(1)
+    )).thenReturn(mockEnt14);
 
     // When
     BankAggreg8ResponseDto[] result = aggreg8.getBanks();
